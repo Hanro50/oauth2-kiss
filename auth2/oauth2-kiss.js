@@ -4,7 +4,7 @@
  * >This will auto generate the end points that are needed. 
  * >Integrate with express
  * >create an end point a client browser can pull from to get the available list of client end points from
- * 
+ * >Be kept as simple as possible while remaining as hard as possible to fudge up 
  */
 exports.name = 'oauth2-kiss';
 
