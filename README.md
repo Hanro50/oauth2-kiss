@@ -1,7 +1,7 @@
 
 
-#oauth 2 (keep it simple stupids)
-##Design goals:
+# oauth 2 (keep it simple stupids)
+## Design goals:
 >This will auto generate the end points that are needed. <br>
 >Integrate with express<br>
 >create an end point a client browser can pull from to get the available list of client end points from<br>
