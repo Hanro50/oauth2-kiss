@@ -4,7 +4,7 @@
  * >This will auto generate the end points that are needed. 
  * >Integrate with express
  * >create an end point a client browser can pull from to get the available list of client end points from
- * >Be kept as simple as possible while remaining as hard as possible to fudge up 
+ * 
  */
 exports.name = 'oauth2-kiss';
 
@@ -13,12 +13,6 @@ const clients = new Map();
 const instances = new Map();
 const fetch = require('node-fetch');
 var unsafe = false;
-
-var whitelist = [];
-
-exports.whitelist = function (subAdress) {
-    whitelist.push(subAdress);
-}
 
 /**
  * The redirect URL. Please set this first
@@ -30,7 +24,7 @@ const fs = require('fs');
  * The cache manager class
  */
 
-exports.savefile = './usercache.json';
+exports.savefile = __dirname + '/usercache.json';
 var FileCacheManager = class {
     constructor(path) {
         this.path = path;
@@ -50,18 +44,30 @@ var FileCacheManager = class {
     }
 
     get(sessionID) {
-        if (!this.data.has(sessionID)) {
+        if (!this.data.has(sessionsessionID)) {
             console.log("cannot find" + sessionID);
             console.log(this.data);
         }
         return this.data.get(sessionID);
     }
 
+    clean() {
+        this.data.forEach((val, key) => {
+            if (val.exp) {
+                console.log(Math.floor(Date.now() / 1000) + " > " + val.exp)
+                if (Math.floor(Date.now() / 1000) > val.exp) {
+                    this.logout(key);
+                }
+            }
+        })
+    }
+
     logout(sessionID) {
-        console.log("logging out user " + sessionID);
-     
+        if (sessionID != null && sessionID != "null")
+            console.log("logging out user with a session ID of " + sessionID);
+
         this.data.delete(sessionID);
-        
+
         fs.writeFileSync(this.path, JSON.stringify(Array.from(this.data.entries()), "\n", " "))
     }
 
@@ -84,20 +90,20 @@ exports.cacheManger = FileCacheManager;
 /**
  * What to do after a user has been processed
  */
-exports.consumer = function (req, res, data, tokenID, instance) {
+exports.consumer = function(req, res, data, tokenID, instance) {
 
-    //Perhaps someone will find the extra fields helpfull? I just don't feel like removing them
-    cache.add(req.sessionID, data, tokenID, instance)
-    res.redirect("/");
+        //Perhaps someone will find the extra fields helpfull? I just don't feel like removing them
+        cache.add(req.sessionID, data, tokenID, instance)
+        res.redirect("/");
 
-}
-/**
- * The first version of the Init command. 
- * Aimed to be a turn key solution
- * @param {Express} app 
- */
-exports.INIT0 = function (app, loginPage) {
-    if (loginPage == null){
+    }
+    /**
+     * The first version of the Init command. 
+     * Aimed to be a turn key solution
+     * @param {Express} app 
+     */
+exports.INIT0 = function(app, loginPage) {
+    if (loginPage == null) {
         loginPage = "/auth/login";
         app.get("/auth/login", (req, res) => {
             var s = "<html><head><title>Sign in!</title></head><body>";
@@ -110,15 +116,14 @@ exports.INIT0 = function (app, loginPage) {
             res.end();
         })
     }
-    else{
-        whitelist.push(loginPage);
-    }
 
     var x = this.cacheManger;
     console.log("will use " + this.savefile)
     cache = new x(this.savefile);
-    app.use("/*", (req, res, next) => {
-        if (String(req.baseUrl).startsWith('/auth')) {
+    app.use("/*", (req, _res, next) => {
+        req.loginPage = loginPage;
+        if (String(req.baseUrl).startsWith('/auth') || String(req.baseUrl) == loginPage) {
+            req.loggedIn = "true"
             return next();
         }
 
@@ -126,24 +131,19 @@ exports.INIT0 = function (app, loginPage) {
         var session = req.sessionID;
         if (session == null) {
             console.log("err1")
-            if (!whitelist.includes(req.baseUrl))
-                return res.redirect(loginPage);
-            else
-                return next();
+            return next();
         }
         var user = cache.get(session);
         if (user == null) {
             console.log("err2")
-            if (!whitelist.includes(req.baseUrl))
-                return res.redirect(loginPage);
-            else
-                return next();
+            return next();
         }
         req.user = user;
+        req.loggedIn = "true"
         return next();
     })
 
-    
+
 
     app.get("/auth/logins", (req, res) => {
         res.writeHead(200, "application/json")
@@ -153,13 +153,31 @@ exports.INIT0 = function (app, loginPage) {
 
     })
 
-    app.get('/auth/logout',(req, res) => {
+    app.get('/auth/logout', (req, res) => {
         res.writeHead(200, "application/json")
         res.write(JSON.stringify(Array.from(instances.entries())));
         cache.logout(req.sessionID)
         res.end();
 
     })
+
+    cache.clean();
+    //*/5 * * * *
+    const cron = require('node-cron');
+    cron.schedule('*/5 * * * *', function() {
+
+        if (cache) {
+            try {
+                cache.clean();
+            } catch (e) {
+                console.error(e);
+            }
+        } else {
+            console.warn("Cache manager not loaded")
+        }
+
+
+    });
 
 }
 
@@ -181,7 +199,7 @@ exports.setUnsafe = () => {
  * @param {string} authorizationUri
  * @param {function UserInfo(token, consumer) {}} 
  */
-exports.registerClient = function (id, accessTokenUri, authorizationUri, UserInfo) {
+exports.registerClient = function(id, accessTokenUri, authorizationUri, UserInfo) {
     if (clients.has(id.toLocaleLowerCase())) {
         if (!unsafe)
             throw ("The provided id was not unique!");
@@ -233,12 +251,15 @@ this.registerClient(
 
         fetch(endpoint, { headers: headers }).then(response => response.json())
             .then(data => {
+                //This can be changed since MS's default picture thing doesn't seem to work
                 data.picture = "/MS_PFP.jpg"
-                consumer(data, token)});
+                data.exp = Math.round(Date.now() / 1000) + Number(token.data.expires_in);
+                consumer(data, token)
+            });
     })
 
 
-var ClientOAuth2 = require('client-oauth2')
+var ClientOAuth2 = require('client-oauth2');
 /**
  * Registers a client and the needed end points
  * @param {Express} The express client needed to generate the needed end points
@@ -279,16 +300,16 @@ exports.setup = (app, provider, clientID, clientSecret, scopes, name) => {
         response_type: "id_token"
     })
 
-    app.get(call, function (req, res) {
+    app.get(call, function(req, res) {
         var uri = client.code.getUri()
         res.redirect(uri)
         res.end()
     })
 
     var consume = this.consumer;
-    app.get(localRedirect, function (req, res) {
+    app.get(localRedirect, function(req, res) {
         client.code.getToken(req.originalUrl)
-            .then(function (token) {
+            .then(function(token) {
                 // Sign API requests on behalf of the current user.
                 token.sign({
                     method: 'get',
@@ -303,6 +324,8 @@ exports.setup = (app, provider, clientID, clientSecret, scopes, name) => {
         name: name,
         callURI: call
     })
+
+
 
 
 }
