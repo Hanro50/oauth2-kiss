@@ -44,7 +44,7 @@ var FileCacheManager = class {
     }
 
     get(sessionID) {
-        if (!this.data.has(sessionsessionID)) {
+        if (!this.data.has(sessionID)) {
             console.log("cannot find" + sessionID);
             console.log(this.data);
         }
