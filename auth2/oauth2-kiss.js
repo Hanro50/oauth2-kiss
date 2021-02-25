@@ -45,8 +45,8 @@ var FileCacheManager = class {
 
     get(sessionID) {
         if (!this.data.has(sessionID)) {
-            console.log("cannot find" + sessionID);
-            console.log(this.data);
+            //console.log("cannot find" + sessionID);
+            //console.log(this.data);
         }
         return this.data.get(sessionID);
     }
@@ -54,7 +54,7 @@ var FileCacheManager = class {
     clean() {
         this.data.forEach((val, key) => {
             if (val.exp) {
-                console.log(Math.floor(Date.now() / 1000) + " > " + val.exp)
+                //console.log(Math.floor(Date.now() / 1000) + " > " + val.exp)
                 if (Math.floor(Date.now() / 1000) > val.exp) {
                     this.logout(key);
                 }
@@ -251,7 +251,7 @@ this.registerClient(
 
         fetch(endpoint, { headers: headers }).then(response => response.json())
             .then(data => {
-                //This can be changed since MS's default picture thing doesn't seem to work
+                //This can be changed since MS's default picture thing doesn't seem
                 data.picture = "/MS_PFP.jpg"
                 data.exp = Math.round(Date.now() / 1000) + Number(token.data.expires_in);
                 consumer(data, token)
