@@ -33,7 +33,7 @@ var FileCacheManager = class {
             try {
                 this.data = new Map(JSON.parse(fs.readFileSync(this.path)));
             } catch (e) {
-                console.warn("Could not restore session cache into memort =>\n" + e)
+                //console.warn("Could not restore session cache into memort =>\n" + e)
             }
         }
     }
@@ -252,7 +252,7 @@ this.registerClient(
         fetch(endpoint, { headers: headers }).then(response => response.json())
             .then(data => {
                 //This can be changed since MS's default picture thing doesn't seem
-                data.picture = "/MS_PFP.jpg"
+                data.picture = null;
                 data.exp = Math.round(Date.now() / 1000) + Number(token.data.expires_in);
                 consumer(data, token)
             });
